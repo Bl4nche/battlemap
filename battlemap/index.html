@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Battlemap – luoghi di battaglie storiche</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--ink:#1e2b30;--mist:#e9eeec;--moss:#4d6b5c;--brass:#9a7420;--line:#c9d3cf}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font:15px/1.5 system-ui,sans-serif;color:var(--ink)}
+body{display:grid;grid-template-columns:320px 1fr}
+aside{background:var(--mist);padding:20px;overflow:auto;border-right:1px solid var(--line)}
+h1{font:600 26px/1.15 Georgia,serif;margin:0 0 6px}
+p{margin:0 0 14px}
+fieldset{border:1px solid var(--line);border-radius:6px;margin:0 0 14px;padding:10px 12px}
+legend{font-weight:600;padding:0 6px}
+label{display:block;cursor:pointer}
+.note{background:#fff;border-left:4px solid var(--brass);padding:10px 12px;font-size:13.5px}
+#map{height:100%}
+:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+@media(max-width:700px){body{grid-template-columns:1fr;grid-template-rows:auto 60vh}aside{border-right:0}}
+</style>
+</head>
+<body>
+<aside>
+  <h1>Battlemap</h1>
+  <p>Luoghi di battaglie storiche da dati aperti. Il cerchio indica l'area approssimativa, non un punto esatto.</p>
+  <fieldset><legend>Periodo</legend><div id="periods"></div></fieldset>
+  <fieldset><legend>Affidabilità della posizione</legend><div id="rel"></div></fieldset>
+  <p id="count"></p>
+  <div class="note"><strong>Prima di cercare reperti:</strong> in Italia la ricerca con metal detector senza autorizzazione è vietata dal Codice dei beni culturali (D.Lgs. 42/2004) e i ritrovamenti appartengono allo Stato. Le regole cambiano da paese a paese: informati sempre.</div>
+</aside>
+<div id="map"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const PERIODS={antica:"Antichità",medievale:"Medioevo",moderna:"Età moderna",ottocento:"Ottocento",wwi:"Prima guerra mondiale",wwii:"Seconda guerra mondiale",altro:"Altro"};
+const REL={alta:{label:"Alta (circa 1 km)",r:1000,c:"#4d6b5c"},media:{label:"Media (circa 5 km)",r:5000,c:"#9a7420"},bassa:{label:"Bassa (circa 20 km)",r:20000,c:"#8a4a4a"}};
+const map=L.map("map").setView([42.5,12.5],5);
+const osm=L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"© OpenStreetMap contributors"}).addTo(map);
+const topo=L.tileLayer("https://tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors"});
+const G={punti:L.layerGroup().addTo(map),aree:L.layerGroup().addTo(map),strade:L.layerGroup().addTo(map),trincee:L.layerGroup().addTo(map)};
+L.control.layers({"Mappa stradale":osm,"Terreno":topo},{"Luoghi di battaglie":G.punti,"Aree di battaglia":G.aree,"Strade antiche":G.strade,"Trincee e fortificazioni":G.trincee},{collapsed:false}).addTo(map);
+const layer=G.punti;
+const ST={area:{color:"#9a7420",weight:2,fillOpacity:.2},strada:{color:"#8a4a4a",weight:3,dashArray:"8 6"},trincea:{color:"#1e2b30",weight:3,dashArray:"2 6"}};
+const GK={area:"aree",strada:"strade",trincea:"trincee"};
+let ov=[];
+const active={p:new Set(Object.keys(PERIODS)),r:new Set(Object.keys(REL))};
+let data=[];
+
+function checks(id,items,set,fmt){
+  const box=document.getElementById(id);
+  for(const k in items){
+    const l=document.createElement("label");
+    l.innerHTML=`<input type="checkbox" checked> ${fmt(items[k])}`;
+    l.firstChild.addEventListener("change",e=>{e.target.checked?set.add(k):set.delete(k);draw();});
+    box.appendChild(l);
+  }
+}
+function fmtYear(y){return y==null?"data ignota":y<0?`${-y} a.C.`:`${y}`}
+function draw(){
+  layer.clearLayers();G.aree.clearLayers();G.strade.clearLayers();G.trincee.clearLayers();let n=0;
+  for(const f of data){
+    const p=f.properties;
+    if(!active.p.has(p.period)||!active.r.has(p.reliability))continue;
+    const [lon,lat]=f.geometry.coordinates,s=REL[p.reliability]||REL.media;
+    const c=L.circle([lat,lon],{radius:s.r,color:s.c,weight:2,fillOpacity:.25}).addTo(layer);
+    const d=document.createElement("div");
+    d.innerHTML=`<strong></strong><br>${fmtYear(p.year)} · ${PERIODS[p.period]||"Altro"}<br>Posizione: ${p.reliability}`;
+    d.querySelector("strong").textContent=p.name;
+    c.bindPopup(d);n++;
+  }
+  for(const f of ov){
+    const p=f.properties;
+    if(!active.p.has(p.period)||!GK[p.kind])continue;
+    const l=L.geoJSON(f,{style:ST[p.kind]}).addTo(G[GK[p.kind]]);
+    const d=document.createElement("div");
+    d.innerHTML=`<strong></strong><br>${PERIODS[p.period]||"Altro"}${p.demo?"<br><em>Tracciato dimostrativo, non storico</em>":""}`;
+    d.querySelector("strong").textContent=p.name;
+    l.bindPopup(d);
+  }
+  document.getElementById("count").textContent=`${n} battaglie mostrate`;
+}
+checks("periods",PERIODS,active.p,v=>v);
+checks("rel",REL,active.r,v=>v.label);
+Promise.all(["data/battaglie.geojson","data/livelli.geojson"].map(u=>fetch(u).then(r=>r.json()))).then(([a,b])=>{data=a.features;ov=b.features;draw();})
+ .catch(()=>{document.getElementById("count").textContent="Impossibile caricare i dati. Avvia un server locale (vedi README).";});
+</script>
+</body>
+</html>

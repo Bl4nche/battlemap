@@ -1,0 +1,6 @@
+{"type":"FeatureCollection","features":[
+{"type":"Feature","properties":{"kind":"area","name":"Area della battaglia di Waterloo","period":"ottocento","demo":true},"geometry":{"type":"Polygon","coordinates":[[[4.38,50.665],[4.45,50.665],[4.45,50.70],[4.38,50.70],[4.38,50.665]]]}},
+{"type":"Feature","properties":{"kind":"area","name":"Area della battaglia di Marengo","period":"ottocento","demo":true},"geometry":{"type":"Polygon","coordinates":[[[8.63,44.88],[8.70,44.88],[8.70,44.915],[8.63,44.915],[8.63,44.88]]]}},
+{"type":"Feature","properties":{"kind":"strada","name":"Via Appia (tracciato schematico)","period":"antica","demo":true},"geometry":{"type":"LineString","coordinates":[[12.50,41.89],[13.25,41.29],[14.20,41.10],[14.78,41.13]]}},
+{"type":"Feature","properties":{"kind":"trincea","name":"Linea trincerata (esempio)","period":"wwi","demo":true},"geometry":{"type":"LineString","coordinates":[[13.60,46.24],[13.62,46.25],[13.65,46.255],[13.68,46.26]]}}
+]}

@@ -1,0 +1,13 @@
+{"type":"FeatureCollection","features":[
+{"type":"Feature","properties":{"name":"Battaglia di Canne","year":-216,"period":"antica","reliability":"media"},"geometry":{"type":"Point","coordinates":[16.1317,41.3053]}},
+{"type":"Feature","properties":{"name":"Battaglia di Teutoburgo (Kalkriese)","year":9,"period":"antica","reliability":"media"},"geometry":{"type":"Point","coordinates":[8.13,52.40]}},
+{"type":"Feature","properties":{"name":"Battaglia di Hastings","year":1066,"period":"medievale","reliability":"alta"},"geometry":{"type":"Point","coordinates":[0.4872,50.9124]}},
+{"type":"Feature","properties":{"name":"Battaglia di Legnano","year":1176,"period":"medievale","reliability":"media"},"geometry":{"type":"Point","coordinates":[8.917,45.597]}},
+{"type":"Feature","properties":{"name":"Battaglia di Marengo","year":1800,"period":"ottocento","reliability":"alta"},"geometry":{"type":"Point","coordinates":[8.6667,44.8967]}},
+{"type":"Feature","properties":{"name":"Battaglia di Waterloo","year":1815,"period":"ottocento","reliability":"alta"},"geometry":{"type":"Point","coordinates":[4.412,50.68]}},
+{"type":"Feature","properties":{"name":"Battaglia di Solferino","year":1859,"period":"ottocento","reliability":"alta"},"geometry":{"type":"Point","coordinates":[10.5614,45.3856]}},
+{"type":"Feature","properties":{"name":"Battaglia di Caporetto","year":1917,"period":"wwi","reliability":"alta"},"geometry":{"type":"Point","coordinates":[13.5786,46.2447]}},
+{"type":"Feature","properties":{"name":"Battaglia del Monte Grappa","year":1917,"period":"wwi","reliability":"media"},"geometry":{"type":"Point","coordinates":[11.8,45.8167]}},
+{"type":"Feature","properties":{"name":"Sbarco alleato in Sicilia (Gela)","year":1943,"period":"wwii","reliability":"media"},"geometry":{"type":"Point","coordinates":[14.2515,37.0676]}},
+{"type":"Feature","properties":{"name":"Battaglia di Montecassino","year":1944,"period":"wwii","reliability":"alta"},"geometry":{"type":"Point","coordinates":[13.8148,41.4905]}}
+]}
