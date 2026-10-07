@@ -36,14 +36,14 @@ label{display:block;cursor:pointer}
 <script>
 const PERIODS={antica:"Antichità",medievale:"Medioevo",moderna:"Età moderna",ottocento:"Ottocento",wwi:"Prima guerra mondiale",wwii:"Seconda guerra mondiale",altro:"Altro"};
 const REL={alta:{label:"Alta (circa 1 km)",r:1000,c:"#4d6b5c"},media:{label:"Media (circa 5 km)",r:5000,c:"#9a7420"},bassa:{label:"Bassa (circa 20 km)",r:20000,c:"#8a4a4a"}};
-const map=L.map("map").setView([42.5,12.5],5);
+const map=L.map("map").setView([42.0,12.8],6);
 const osm=L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"© OpenStreetMap contributors"}).addTo(map);
 const topo=L.tileLayer("https://tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors"});
-const G={punti:L.layerGroup().addTo(map),aree:L.layerGroup().addTo(map),strade:L.layerGroup().addTo(map),trincee:L.layerGroup().addTo(map)};
-L.control.layers({"Mappa stradale":osm,"Terreno":topo},{"Luoghi di battaglie":G.punti,"Aree di battaglia":G.aree,"Strade antiche":G.strade,"Trincee e fortificazioni":G.trincee},{collapsed:false}).addTo(map);
+const G={punti:L.layerGroup().addTo(map),aree:L.layerGroup().addTo(map),strade:L.layerGroup().addTo(map),trincee:L.layerGroup().addTo(map),citta:L.layerGroup().addTo(map)};
+L.control.layers({"Mappa stradale":osm,"Terreno":topo},{"Luoghi di battaglie":G.punti,"Aree di battaglia":G.aree,"Strade antiche":G.strade,"Trincee e fortificazioni":G.trincee,"Città scomparse":G.citta},{collapsed:false}).addTo(map);
 const layer=G.punti;
 const ST={area:{color:"#9a7420",weight:2,fillOpacity:.2},strada:{color:"#8a4a4a",weight:3,dashArray:"8 6"},trincea:{color:"#1e2b30",weight:3,dashArray:"2 6"}};
-const GK={area:"aree",strada:"strade",trincea:"trincee"};
+const GK={area:"aree",strada:"strade",trincea:"trincee",citta:"citta"};
 let ov=[];
 const active={p:new Set(Object.keys(PERIODS)),r:new Set(Object.keys(REL))};
 let data=[];
@@ -59,7 +59,7 @@ function checks(id,items,set,fmt){
 }
 function fmtYear(y){return y==null?"data ignota":y<0?`${-y} a.C.`:`${y}`}
 function draw(){
-  layer.clearLayers();G.aree.clearLayers();G.strade.clearLayers();G.trincee.clearLayers();let n=0;
+  layer.clearLayers();G.aree.clearLayers();G.strade.clearLayers();G.trincee.clearLayers();G.citta.clearLayers();let n=0;
   for(const f of data){
     const p=f.properties;
     if(!active.p.has(p.period)||!active.r.has(p.reliability))continue;
@@ -73,17 +73,18 @@ function draw(){
   for(const f of ov){
     const p=f.properties;
     if(!active.p.has(p.period)||!GK[p.kind])continue;
-    const l=L.geoJSON(f,{style:ST[p.kind]}).addTo(G[GK[p.kind]]);
+    const l=L.geoJSON(f,{style:ST[p.kind],pointToLayer:(g,ll)=>L.circleMarker(ll,{radius:7,color:"#1e2b30",weight:2,fillColor:"#4d6b5c",fillOpacity:.9})}).addTo(G[GK[p.kind]]);
     const d=document.createElement("div");
-    d.innerHTML=`<strong></strong><br>${PERIODS[p.period]||"Altro"}${p.demo?"<br><em>Tracciato dimostrativo, non storico</em>":""}`;
+    d.innerHTML=`<strong></strong><br>${PERIODS[p.period]||"Altro"}${p.demo?"<br><em>Tracciato dimostrativo, non storico</em>":p.approx?"<br><em>Posizione approssimativa</em>":""}`;
     d.querySelector("strong").textContent=p.name;
+    if(p.note){const t=document.createElement("div");t.textContent=p.note;d.appendChild(t);}
     l.bindPopup(d);
   }
   document.getElementById("count").textContent=`${n} battaglie mostrate`;
 }
 checks("periods",PERIODS,active.p,v=>v);
 checks("rel",REL,active.r,v=>v.label);
-Promise.all(["data/battaglie.geojson","data/livelli.geojson"].map(u=>fetch(u).then(r=>r.json()))).then(([a,b])=>{data=a.features;ov=b.features;draw();})
+Promise.all(["data/battaglie.geojson","data/livelli.geojson","data/italia.geojson"].map(u=>fetch(u).then(r=>r.json()))).then(([a,b,c])=>{data=a.features;ov=b.features.concat(c.features);draw();})
  .catch(()=>{document.getElementById("count").textContent="Impossibile caricare i dati. Avvia un server locale (vedi README).";});
 </script>
 </body>
