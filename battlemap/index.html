@@ -3,89 +3,252 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Battlemap – luoghi di battaglie storiche</title>
+<title>Battlemap – storia sul territorio</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{--ink:#1e2b30;--mist:#e9eeec;--moss:#4d6b5c;--brass:#9a7420;--line:#c9d3cf}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;font:15px/1.5 system-ui,sans-serif;color:var(--ink)}
-body{display:grid;grid-template-columns:320px 1fr}
+body{display:grid;grid-template-columns:330px 1fr}
 aside{background:var(--mist);padding:20px;overflow:auto;border-right:1px solid var(--line)}
 h1{font:600 26px/1.15 Georgia,serif;margin:0 0 6px}
 p{margin:0 0 14px}
 fieldset{border:1px solid var(--line);border-radius:6px;margin:0 0 14px;padding:10px 12px}
 legend{font-weight:600;padding:0 6px}
 label{display:block;cursor:pointer}
+.sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:6px;border:2px solid}
 .note{background:#fff;border-left:4px solid var(--brass);padding:10px 12px;font-size:13.5px}
-#map{height:100%}
+.small{font-size:13px;color:#4a5a5f}
+#map{height:100%;position:relative}
+#status{position:absolute;z-index:1000;left:50%;bottom:18px;transform:translateX(-50%);background:#fff;border:1px solid var(--line);border-radius:20px;padding:6px 14px;font-size:13.5px;box-shadow:0 2px 8px #0003;max-width:90%;text-align:center}
+#status:empty{display:none}
+#search{display:flex;gap:6px;margin:0 0 14px}
+#search input{flex:1;min-width:0;padding:7px 9px;border:1px solid var(--line);border-radius:6px;font:inherit}
+#search button{padding:7px 12px;border:0;border-radius:6px;background:var(--moss);color:#fff;font:inherit;cursor:pointer}
+.leaflet-popup-content a{color:var(--moss)}
 :focus-visible{outline:3px solid var(--brass);outline-offset:2px}
-@media(max-width:700px){body{grid-template-columns:1fr;grid-template-rows:auto 60vh}aside{border-right:0}}
+@media(max-width:700px){body{grid-template-columns:1fr;grid-template-rows:auto 65vh}aside{border-right:0}}
 </style>
 </head>
 <body>
 <aside>
   <h1>Battlemap</h1>
-  <p>Luoghi di battaglie storiche da dati aperti. Il cerchio indica l'area approssimativa, non un punto esatto.</p>
-  <fieldset><legend>Periodo</legend><div id="periods"></div></fieldset>
-  <fieldset><legend>Affidabilità della posizione</legend><div id="rel"></div></fieldset>
-  <p id="count"></p>
+  <p>Strade antiche, rovine, catacombe, campi di battaglia, trincee e fortificazioni da dati aperti OpenStreetMap, con tracciati precisi. Avvicinati (zoom 11 o più) per caricare i dettagli dell'area visibile.</p>
+  <form id="search" role="search"><input id="q" type="search" placeholder="Cerca un luogo (es. Cassino)" aria-label="Cerca un luogo"><button>Vai</button></form>
+  <fieldset><legend>Cosa mostrare</legend><div id="cats"></div></fieldset>
+  <fieldset><legend>Battaglie (Wikidata)</legend>
+    <div id="periods"></div>
+    <p class="small" style="margin-top:8px">Il cerchio è un'area approssimativa, non un punto esatto.</p>
+  </fieldset>
+  <p id="count" class="small"></p>
   <div class="note"><strong>Prima di cercare reperti:</strong> in Italia la ricerca con metal detector senza autorizzazione è vietata dal Codice dei beni culturali (D.Lgs. 42/2004) e i ritrovamenti appartengono allo Stato. Le regole cambiano da paese a paese: informati sempre.</div>
+  <p class="small" style="margin-top:12px">Dati © contributori OpenStreetMap (ODbL), Wikidata (CC0). I tracciati dipendono dalla completezza di OSM: dove manca qualcosa, qualcuno non l'ha ancora mappato.</p>
 </aside>
-<div id="map"></div>
+<div id="map"><div id="status" role="status" aria-live="polite"></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 const PERIODS={antica:"Antichità",medievale:"Medioevo",moderna:"Età moderna",ottocento:"Ottocento",wwi:"Prima guerra mondiale",wwii:"Seconda guerra mondiale",altro:"Altro"};
-const REL={alta:{label:"Alta (circa 1 km)",r:1000,c:"#4d6b5c"},media:{label:"Media (circa 5 km)",r:5000,c:"#9a7420"},bassa:{label:"Bassa (circa 20 km)",r:20000,c:"#8a4a4a"}};
-const map=L.map("map").setView([42.0,12.8],6);
-const osm=L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"© OpenStreetMap contributors"}).addTo(map);
-const topo=L.tileLayer("https://tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors"});
-const G={punti:L.layerGroup().addTo(map),aree:L.layerGroup().addTo(map),strade:L.layerGroup().addTo(map),trincee:L.layerGroup().addTo(map),citta:L.layerGroup().addTo(map)};
-L.control.layers({"Mappa stradale":osm,"Terreno":topo},{"Luoghi di battaglie":G.punti,"Aree di battaglia":G.aree,"Strade antiche":G.strade,"Trincee e fortificazioni":G.trincee,"Città scomparse":G.citta},{collapsed:false}).addTo(map);
-const layer=G.punti;
-const ST={area:{color:"#9a7420",weight:2,fillOpacity:.2},strada:{color:"#8a4a4a",weight:3,dashArray:"8 6"},trincea:{color:"#1e2b30",weight:3,dashArray:"2 6"}};
-const GK={area:"aree",strada:"strade",trincea:"trincee",citta:"citta"};
-let ov=[];
-const active={p:new Set(Object.keys(PERIODS)),r:new Set(Object.keys(REL))};
-let data=[];
+const REL={alta:{r:1000,c:"#4d6b5c"},media:{r:5000,c:"#9a7420"},bassa:{r:20000,c:"#8a4a4a"}};
+// Categorie OSM: colore, etichetta, filtro Overpass e regola di classificazione sui tag.
+const CATS={
+  strade:{label:"Strade antiche",color:"#a8431f",line:true,
+    q:['["historic"="roman_road"]','["historic"="road"]','["historic"="trackway"]'],
+    is:t=>/^(roman_road|road|trackway)$/.test(t.historic)},
+  rovine:{label:"Rovine e siti archeologici",color:"#7a5c2e",
+    q:['["historic"~"^(ruins|archaeological_site|aqueduct|city_gate|temple|amphitheatre|theatre)$"]','["ruins"="yes"]["historic"]'],
+    is:t=>/^(ruins|archaeological_site|aqueduct|city_gate|temple|amphitheatre|theatre)$/.test(t.historic)||t.ruins==="yes"},
+  catacombe:{label:"Catacombe e ipogei",color:"#5b3f8c",
+    q:['["historic"="catacombs"]','["tomb"="catacomb"]'],
+    is:t=>t.historic==="catacombs"||t.tomb==="catacomb"},
+  battaglie:{label:"Campi di battaglia",color:"#b0262b",
+    q:['["historic"="battlefield"]'],
+    is:t=>t.historic==="battlefield"},
+  trincee:{label:"Trincee, bunker, linee difensive",color:"#1e2b30",line:true,
+    q:['["military"~"^(trench|bunker|pillbox)$"]','["historic"~"^(trench|bunker)$"]'],
+    is:t=>/^(trench|bunker|pillbox)$/.test(t.military||"")||/^(trench|bunker)$/.test(t.historic||"")},
+  forti:{label:"Castelli, forti, mura",color:"#2f6f8f",
+    q:['["historic"~"^(castle|fort|city_walls|fortification|tower)$"]'],
+    is:t=>/^(castle|fort|city_walls|fortification|tower)$/.test(t.historic||"")}
+};
+const order=["catacombe","battaglie","trincee","strade","rovine","forti"]; // priorità di classificazione
+const loadOrder=["strade","rovine","catacombe","trincee","battaglie","forti"]; // ordine di caricamento
+const MINZ=11, MAXEL=2500;
+const map=L.map("map",{preferCanvas:true}).setView([42.0,12.8],6);
+const base={
+  "Mappa stradale":L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(map),
+  "Terreno":L.tileLayer("https://tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors"}),
+  "Satellite":L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"Tiles © Esri, Maxar, Earthstar Geographics"})
+};
+L.control.layers(base,{},{collapsed:true}).addTo(map);
+const G={},shown={};
+for(const k in CATS){G[k]=L.layerGroup().addTo(map);shown[k]=true;}
+G.wd=L.layerGroup().addTo(map);G.demo=L.layerGroup().addTo(map);
 
-function checks(id,items,set,fmt){
-  const box=document.getElementById(id);
-  for(const k in items){
-    const l=document.createElement("label");
-    l.innerHTML=`<input type="checkbox" checked> ${fmt(items[k])}`;
-    l.firstChild.addEventListener("change",e=>{e.target.checked?set.add(k):set.delete(k);draw();});
-    box.appendChild(l);
-  }
+// ---- filtri laterali
+const catBox=document.getElementById("cats");
+for(const k of order){
+  const l=document.createElement("label");
+  l.innerHTML=`<input type="checkbox" checked><span class="sw"></span>`;
+  l.querySelector(".sw").style.cssText=`background:${CATS[k].color}33;border-color:${CATS[k].color}`;
+  l.append(CATS[k].label);
+  l.firstChild.addEventListener("change",e=>{shown[k]=e.target.checked;e.target.checked?(map.addLayer(G[k]),loadView()):map.removeLayer(G[k]);});
+  catBox.appendChild(l);
 }
-function fmtYear(y){return y==null?"data ignota":y<0?`${-y} a.C.`:`${y}`}
-function draw(){
-  layer.clearLayers();G.aree.clearLayers();G.strade.clearLayers();G.trincee.clearLayers();G.citta.clearLayers();let n=0;
-  for(const f of data){
-    const p=f.properties;
-    if(!active.p.has(p.period)||!active.r.has(p.reliability))continue;
+const activeP=new Set(Object.keys(PERIODS));
+const pBox=document.getElementById("periods");
+for(const k in PERIODS){
+  const l=document.createElement("label");
+  l.innerHTML=`<input type="checkbox" checked> ${PERIODS[k]}`;
+  l.firstChild.addEventListener("change",e=>{e.target.checked?activeP.add(k):activeP.delete(k);drawWd();});
+  pBox.appendChild(l);
+}
+const status=document.getElementById("status");
+const setStatus=t=>{status.textContent=t};
+
+// ---- popup sicuri (textContent) con link a OSM/Wikipedia/Wikidata
+function popup(t,cat,type,id){
+  const d=document.createElement("div");
+  const h=document.createElement("strong");h.textContent=t.name||t["name:it"]||`${CATS[cat].label} (senza nome)`;d.appendChild(h);
+  const sub=[t.historic,t.military,t.tomb,t.castle_type,t.ruins&&"rovina"].filter(Boolean).join(" · ");
+  const add=(txt)=>{const e=document.createElement("div");e.textContent=txt;d.appendChild(e);};
+  add(CATS[cat].label+(sub?` — ${sub}`:""));
+  if(t.start_date||t.end_date)add(`Periodo: ${t.start_date||"?"} – ${t.end_date||"?"}`);
+  if(t.inscription)add(t.inscription);
+  if(t.description)add(t.description);
+  const links=document.createElement("div");links.style.marginTop="6px";
+  const a=(href,txt)=>{const x=document.createElement("a");x.href=href;x.textContent=txt;x.target="_blank";x.rel="noopener";links.append(x," ");};
+  a(`https://www.openstreetmap.org/${type}/${id}`,"OSM");
+  if(/^[a-z]{2,3}:/.test(t.wikipedia||""))a(`https://${t.wikipedia.split(":")[0]}.wikipedia.org/wiki/${encodeURIComponent(t.wikipedia.slice(t.wikipedia.indexOf(":")+1).replace(/ /g,"_"))}`,"Wikipedia");
+  if(/^Q\d+$/.test(t.wikidata||""))a(`https://www.wikidata.org/wiki/${t.wikidata}`,"Wikidata");
+  d.appendChild(links);
+  return d;
+}
+
+// ---- caricamento OSM dall'area visibile (Overpass), con cache per bbox e mirror di riserva
+// Un solo server affidabile: i mirror provati rispondevano con elenchi vuoti o non rispondevano affatto.
+const SERVERS=["https://overpass-api.de/api/interpreter"];
+const loaded={},seen=new Set();let ctl=null,timer=null;
+for(const k in CATS)loaded[k]=[];
+const contains=(o,i)=>o[0]<=i[0]&&o[1]<=i[1]&&o[2]>=i[2]&&o[3]>=i[3];
+function buildQuery(cat,b){
+  const bb=`(${b[0]},${b[1]},${b[2]},${b[3]})`;
+  return `[out:json][timeout:40];(${CATS[cat].q.map(f=>`nwr${f}${bb};`).join("")});out geom ${MAXEL};`;
+}
+async function overpass(q,signal){
+  let err;
+  for(const s of SERVERS){
+    try{
+      const to=new AbortController(),tm=setTimeout(()=>to.abort(),20000);
+      signal.addEventListener("abort",()=>to.abort(),{once:true});
+      try{
+        const r=await fetch(s,{method:"POST",body:new URLSearchParams({data:q}),signal:to.signal});
+        if(!r.ok)throw new Error(r.status);
+        const j=await r.json();   // se il server è sovraccarico risponde con una pagina XML e il parsing fallisce
+        if(j.remark&&/error|timed out|out of memory/i.test(j.remark))throw new Error(j.remark);
+        return j.elements;
+      }finally{clearTimeout(tm);}
+    }catch(e){if(signal.aborted)throw e;err=e;}
+  }
+  throw err;
+}
+function classify(t){for(const k of order)if(CATS[k].is(t))return k;return null;}
+function render(e){
+  const key=e.type+e.id;if(seen.has(key))return;
+  const t=e.tags||{},cat=classify(t);if(!cat)return;seen.add(key);
+  const c=CATS[cat],g=G[cat],pop=()=>popup(t,cat,e.type,e.id);
+  const lineStyle={color:c.color,weight:cat==="strade"?4:3,opacity:.9,dashArray:cat==="trincee"?"2 5":(cat==="strade"&&t.historic!=="roman_road"?"8 6":null)};
+  const areaStyle={color:c.color,weight:2,fillColor:c.color,fillOpacity:.25};
+  const poly=pts=>pts.map(p=>[p.lat,p.lon]);
+  const mark=(ll)=>L.circleMarker(ll,{radius:6,color:"#fff",weight:1.5,fillColor:c.color,fillOpacity:.95}).bindPopup(pop).addTo(g);
+  if(e.type==="node"){mark([e.lat,e.lon]);return;}
+  const rings=e.type==="way"?[e.geometry]:(e.members||[]).filter(m=>m.geometry).map(m=>m.geometry);
+  let last;
+  for(const geo of rings){
+    if(!geo||geo.length<2)continue;
+    const ll=poly(geo),closed=geo.length>3&&geo[0].lat===geo[geo.length-1].lat&&geo[0].lon===geo[geo.length-1].lon;
+    last=(closed&&!c.line?L.polygon(ll,areaStyle):L.polyline(ll,lineStyle)).bindPopup(pop).addTo(g);
+  }
+  // le aree piccole restano visibili anche da lontano grazie a un punto al centro
+  if(last&&!c.line&&last.getBounds)mark(last.getBounds().getCenter());
+}
+async function loadCat(cat,b,signal){
+  if(loaded[cat].some(o=>contains(o,b)))return true;
+  for(let attempt=0;attempt<4;attempt++){
+    try{
+      const els=await overpass(buildQuery(cat,b),signal);
+      els.forEach(render);
+      if(els.length<MAXEL){loaded[cat].push(b);return true;}
+      return "pieno";
+    }catch(e){if(signal.aborted)throw e;await new Promise(r=>setTimeout(r,3000*(attempt+1)));}
+  }
+  return false;
+}
+async function loadView(){
+  if(map.getZoom()<MINZ){setStatus(`Avvicinati (zoom ${MINZ}+) per caricare strade, rovine e altro da OpenStreetMap`);return;}
+  map.invalidateSize();
+  if(map.getSize().x<50||map.getSize().y<50)return;   // mappa nascosta o senza dimensioni: l'area sarebbe vuota
+  const v=map.getBounds(),vb=[v.getSouth(),v.getWest(),v.getNorth(),v.getEast()];
+  const pad=.15,dh=(vb[2]-vb[0])*pad,dw=(vb[3]-vb[1])*pad;
+  const b=[vb[0]-dh,vb[1]-dw,vb[2]+dh,vb[3]+dw].map(x=>+x.toFixed(5));
+  const todo=loadOrder.filter(k=>shown[k]&&!loaded[k].some(o=>contains(o,vb)));
+  if(!todo.length){setStatus("");return;}
+  if(ctl)ctl.abort();ctl=new AbortController();const sig=ctl.signal;
+  let done=0,failed=[],full=[];
+  setStatus(`Carico da OpenStreetMap… 0/${todo.length}`);
+  try{
+    for(const k of todo){   // una categoria alla volta: richieste leggere e risultati visibili subito
+      const r=await loadCat(k,b,sig);done++;
+      if(r===false)failed.push(CATS[k].label);else if(r==="pieno")full.push(CATS[k].label);
+      setStatus(`Carico da OpenStreetMap… ${done}/${todo.length}`);
+    }
+  }catch(e){return;}   // interrotto da un nuovo spostamento della mappa
+  setStatus(failed.length?`Server OpenStreetMap occupato, mancano: ${failed.join(", ")}. Sposta leggermente la mappa per riprovare.`
+    :full.length?`Area molto ricca (${full.join(", ")}): mostrati i primi ${MAXEL}. Avvicinati per vederli tutti.`:"");
+}
+map.on("moveend",()=>{clearTimeout(timer);timer=setTimeout(loadView,500);});
+
+// ---- battaglie da Wikidata e livelli panoramici (a zoom basso)
+let wd=[];
+function drawWd(){
+  G.wd.clearLayers();let n=0;
+  for(const f of wd){
+    const p=f.properties;if(!activeP.has(p.period))continue;
     const [lon,lat]=f.geometry.coordinates,s=REL[p.reliability]||REL.media;
-    const c=L.circle([lat,lon],{radius:s.r,color:s.c,weight:2,fillOpacity:.25}).addTo(layer);
-    const d=document.createElement("div");
-    d.innerHTML=`<strong></strong><br>${fmtYear(p.year)} · ${PERIODS[p.period]||"Altro"}<br>Posizione: ${p.reliability}`;
-    d.querySelector("strong").textContent=p.name;
+    const c=L.circle([lat,lon],{radius:s.r,color:s.c,weight:2,fillOpacity:.25}).addTo(G.wd);
+    const d=document.createElement("div"),h=document.createElement("strong");h.textContent=p.name;
+    d.append(h,document.createElement("br"),`${p.year==null?"data ignota":p.year<0?-p.year+" a.C.":p.year} · ${PERIODS[p.period]||"Altro"}`,document.createElement("br"),`Posizione: ${p.reliability}`);
     c.bindPopup(d);n++;
   }
-  for(const f of ov){
-    const p=f.properties;
-    if(!active.p.has(p.period)||!GK[p.kind])continue;
-    const l=L.geoJSON(f,{style:ST[p.kind],pointToLayer:(g,ll)=>L.circleMarker(ll,{radius:7,color:"#1e2b30",weight:2,fillColor:"#4d6b5c",fillOpacity:.9})}).addTo(G[GK[p.kind]]);
-    const d=document.createElement("div");
-    d.innerHTML=`<strong></strong><br>${PERIODS[p.period]||"Altro"}${p.demo?"<br><em>Tracciato dimostrativo, non storico</em>":p.approx?"<br><em>Posizione approssimativa</em>":""}`;
-    d.querySelector("strong").textContent=p.name;
-    if(p.note){const t=document.createElement("div");t.textContent=p.note;d.appendChild(t);}
-    l.bindPopup(d);
-  }
-  document.getElementById("count").textContent=`${n} battaglie mostrate`;
+  document.getElementById("count").textContent=`${n} battaglie da Wikidata mostrate`;
 }
-checks("periods",PERIODS,active.p,v=>v);
-checks("rel",REL,active.r,v=>v.label);
-Promise.all(["data/battaglie.geojson","data/livelli.geojson","data/italia.geojson"].map(u=>fetch(u).then(r=>r.json()))).then(([a,b,c])=>{data=a.features;ov=b.features.concat(c.features);draw();})
- .catch(()=>{document.getElementById("count").textContent="Impossibile caricare i dati. Avvia un server locale (vedi README).";});
+const OVS={strada:{color:"#a8431f",weight:3,dashArray:"8 6"},area:{color:"#9a7420",weight:2,fillOpacity:.2},trincea:{color:"#1e2b30",weight:3,dashArray:"2 6"}};
+function drawOverview(f){
+  const p=f.properties;
+  const l=L.geoJSON(f,{style:OVS[p.kind],pointToLayer:(g,ll)=>L.circleMarker(ll,{radius:7,color:"#1e2b30",weight:2,fillColor:"#4d6b5c",fillOpacity:.9})}).addTo(G.demo);
+  const d=document.createElement("div"),h=document.createElement("strong");h.textContent=p.name;
+  d.append(h,document.createElement("br"),p.demo?"Tracciato dimostrativo, non storico":"Tracciato schematico: avvicinati per il percorso preciso da OSM");
+  if(p.note){const n=document.createElement("div");n.textContent=p.note;d.appendChild(n);}
+  l.bindPopup(d);
+}
+// Il tracciato schematico serve solo come panoramica: dal livello di dettaglio in poi lo sostituiscono i dati OSM.
+function toggleOverview(){const on=map.getZoom()<MINZ;on?map.addLayer(G.demo):map.removeLayer(G.demo);}
+map.on("zoomend",toggleOverview);
+
+Promise.all(["data/battaglie.geojson","data/livelli.geojson","data/italia.geojson"].map(u=>fetch(u).then(r=>r.json()))).then(([a,b,c])=>{
+  wd=a.features;drawWd();b.features.concat(c.features).forEach(drawOverview);toggleOverview();
+}).catch(()=>{document.getElementById("count").textContent="Dati locali non caricati: avvia un server (vedi README).";});
+
+// ---- ricerca luogo (Nominatim)
+document.getElementById("search").addEventListener("submit",async ev=>{
+  ev.preventDefault();const q=document.getElementById("q").value.trim();if(!q)return;
+  setStatus("Cerco…");
+  try{
+    const r=await (await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+encodeURIComponent(q))).json();
+    if(!r.length){setStatus("Nessun risultato");return;}
+    const bb=r[0].boundingbox.map(Number);map.fitBounds([[bb[0],bb[2]],[bb[1],bb[3]]],{maxZoom:14});setStatus("");
+  }catch{setStatus("Ricerca non disponibile");}
+});
+loadView();
 </script>
 </body>
 </html>

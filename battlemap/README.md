@@ -53,3 +53,18 @@ Fonti per dati reali:
 `data/italia.geojson` contiene 8 strade romane (Appia, Flaminia, Emilia, Aurelia, Cassia, Salaria, Popilia, Postumia) e 12 città scomparse, sepolte, abbandonate o sommerse. **Tracciati e posizioni sono approssimativi**: le strade sono schematiche per tappe principali. Per tracciati precisi usa OSM (`scripts/fetch_osm.py`, una regione per volta) o Itiner-e.
 
 Per ampliare l'elenco delle città: `python scripts/fetch_citta.py`, poi aggiungi il file in `index.html` accanto agli altri.
+
+## Dati precisi da OpenStreetMap (dal vivo)
+
+Da zoom 11 in su la mappa scarica da Overpass, per l'area visibile, i dati OSM reali:
+
+| Livello | Tag OSM |
+|---|---|
+| Strade antiche | `historic=roman_road`, `road`, `trackway` |
+| Rovine e siti archeologici | `historic=ruins`, `archaeological_site`, `aqueduct`, `city_gate`, `temple`, `amphitheatre`, `theatre` |
+| Catacombe e ipogei | `historic=catacombs`, `tomb=catacomb` |
+| Campi di battaglia | `historic=battlefield` |
+| Trincee, bunker | `military=trench/bunker/pillbox` |
+| Castelli, forti, mura | `historic=castle/fort/city_walls/fortification/tower` |
+
+Sotto zoom 11 restano i tracciati schematici di `data/`, solo come panoramica. Il server pubblico Overpass può essere lento o rifiutare richieste: l'app riprova da sola e segnala cosa manca. Se una zona appare vuota, di solito è perché in OSM non è ancora mappata.
