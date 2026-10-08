@@ -42,7 +42,7 @@ label{display:block;cursor:pointer}
   <p>Strade antiche, rovine, catacombe, campi di battaglia, trincee e fortificazioni da dati aperti OpenStreetMap, con tracciati precisi. Avvicinati (zoom 11 o più) per caricare i dettagli dell'area visibile.</p>
   <form id="search" role="search"><input id="q" type="search" placeholder="Cerca un luogo (es. Cassino)" aria-label="Cerca un luogo"><button>Vai</button></form>
   <fieldset><legend>Cosa mostrare</legend><div id="cats"></div></fieldset>
-  <fieldset><legend>Battaglie (Wikidata)</legend>
+  <fieldset><legend>Linea del tempo</legend>
     <div id="timeline">
       <div id="tlOut" aria-live="polite"></div>
       <label class="tl">Dal <input type="range" id="tlFrom" aria-label="Anno iniziale"></label>
@@ -50,12 +50,19 @@ label{display:block;cursor:pointer}
       <label class="small" style="margin-top:4px"><input type="checkbox" id="undated" checked> Includi battaglie senza data</label>
       <button type="button" id="play" aria-pressed="false">▶ Scorri nel tempo</button>
     </div>
+    <p class="small" style="margin:6px 0 0">Vale per battaglie e luoghi antichi.</p>
+  </fieldset>
+  <fieldset><legend>Battaglie (Wikidata)</legend>
     <div id="periods"></div>
     <p class="small" style="margin-top:8px">Il cerchio è un'area approssimativa, non un punto esatto.</p>
   </fieldset>
+  <fieldset><legend>Luoghi antichi (Pleiades)</legend>
+    <div id="plGroups"></div>
+    <p class="small" style="margin-top:8px">Bordo tratteggiato = posizione approssimativa.</p>
+  </fieldset>
   <p id="count" class="small"></p>
   <div class="note"><strong>Prima di cercare reperti:</strong> in Italia la ricerca con metal detector senza autorizzazione è vietata dal Codice dei beni culturali (D.Lgs. 42/2004) e i ritrovamenti appartengono allo Stato. Le regole cambiano da paese a paese: informati sempre.</div>
-  <p class="small" style="margin-top:12px">Dati © contributori OpenStreetMap (ODbL), Wikidata (CC0), strade romane da Itiner-e (CC BY 4.0, de Soto et al.). I tracciati dipendono dalla completezza di OSM: dove manca qualcosa, qualcuno non l'ha ancora mappato.</p>
+  <p class="small" style="margin-top:12px">Dati © contributori OpenStreetMap (ODbL), Wikidata (CC0), strade romane da Itiner-e (CC BY 4.0, de Soto et al.), luoghi antichi da Pleiades (CC BY 3.0). I tracciati dipendono dalla completezza di OSM: dove manca qualcosa, qualcuno non l'ha ancora mappato.</p>
 </aside>
 <div id="map"><div id="status" role="status" aria-live="polite"></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -95,7 +102,7 @@ const base={
 L.control.layers(base,{},{collapsed:true}).addTo(map);
 const G={},shown={};
 for(const k in CATS){G[k]=L.layerGroup().addTo(map);shown[k]=true;}
-G.itinere=L.layerGroup().addTo(map);G.wd=L.layerGroup().addTo(map);G.demo=L.layerGroup().addTo(map);
+G.itinere=L.layerGroup().addTo(map);G.pl=L.layerGroup().addTo(map);G.wd=L.layerGroup().addTo(map);G.demo=L.layerGroup().addTo(map);
 
 // ---- filtri laterali
 const catBox=document.getElementById("cats");
@@ -125,6 +132,7 @@ for(const k in PERIODS){
 }
 const status=document.getElementById("status");
 const setStatus=t=>{status.textContent=t};
+const getJson=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();});
 
 // ---- popup sicuri (textContent) con link a OSM/Wikipedia/Wikidata
 function popup(t,cat,type,id){
@@ -232,22 +240,25 @@ map.on("moveend",()=>{clearTimeout(timer);timer=setTimeout(loadView,500);});
 let wd=[];
 const fmtY=y=>y<0?`${-y} a.C.`:`${y}`;
 const tlFrom=document.getElementById("tlFrom"),tlTo=document.getElementById("tlTo"),undated=document.getElementById("undated");
-// Una battaglia è visibile se il suo intervallo (anno o inizio–fine) tocca l'intervallo scelto.
-function inTime(p){
-  if(p.year==null)return undated.checked;
-  return (p.year_end??p.year)>=+tlFrom.value&&p.year<=+tlTo.value;
+// Visibile se l'intervallo [inizio, fine] tocca quello scelto con i cursori; fine assente = un solo anno.
+function inTime(start,end){
+  if(start==null)return undated.checked;
+  return (end??start)>=+tlFrom.value&&start<=+tlTo.value;
 }
+const applyTime=()=>{drawWd();filterPl();};
 function drawWd(){
   G.wd.clearLayers();let n=0;
   document.getElementById("tlOut").textContent=`${fmtY(+tlFrom.value)} – ${fmtY(+tlTo.value)}`;
   for(const f of wd){
-    const p=f.properties;if(!activeP.has(p.period)||!inTime(p))continue;
+    const p=f.properties;if(!activeP.has(p.period)||!inTime(p.year,p.year_end))continue;
     const [lon,lat]=f.geometry.coordinates,s=REL[p.reliability]||REL.media;
     const c=L.circle([lat,lon],{radius:s.r,color:s.c,weight:2,fillOpacity:.25}).addTo(G.wd);
     c.bindPopup(()=>wdPopup(p));n++;
   }
-  document.getElementById("count").textContent=`${n} battaglie mostrate su ${wd.length}`;
+  wdCount=`${n} battaglie mostrate su ${wd.length}`;showCount();
 }
+let wdCount="",plCount="";
+const showCount=()=>{document.getElementById("count").textContent=[wdCount,plCount].filter(Boolean).join(" · ");};
 function wdPopup(p){
   const d=document.createElement("div"),h=document.createElement("strong");h.textContent=p.name;d.appendChild(h);
   const add=txt=>{const e=document.createElement("div");e.textContent=txt;d.appendChild(e);};
@@ -270,9 +281,9 @@ function initTimeline(){
   tlFrom.value=lo;tlTo.value=hi;
 }
 // i due cursori non si scavalcano
-tlFrom.addEventListener("input",()=>{if(+tlFrom.value>+tlTo.value)tlTo.value=tlFrom.value;drawWd();});
-tlTo.addEventListener("input",()=>{if(+tlTo.value<+tlFrom.value)tlFrom.value=tlTo.value;drawWd();});
-undated.addEventListener("change",drawWd);
+tlFrom.addEventListener("input",()=>{if(+tlFrom.value>+tlTo.value)tlTo.value=tlFrom.value;applyTime();});
+tlTo.addEventListener("input",()=>{if(+tlTo.value<+tlFrom.value)tlFrom.value=tlTo.value;applyTime();});
+undated.addEventListener("change",applyTime);
 // "Scorri nel tempo": una finestra di anni avanza da sola fino alla fine della linea temporale
 const play=document.getElementById("play");let playTimer=null;
 function stopPlay(){clearInterval(playTimer);playTimer=null;play.setAttribute("aria-pressed","false");play.textContent="▶ Scorri nel tempo";}
@@ -287,10 +298,61 @@ play.addEventListener("click",()=>{
   play.setAttribute("aria-pressed","true");play.textContent="❚❚ Ferma";
   playTimer=setInterval(()=>{
     if(+tlTo.value>=hi){stopPlay();return;}
-    tlTo.value=Math.min(hi,+tlTo.value+step);tlFrom.value=+tlTo.value-w;drawWd();
+    tlTo.value=Math.min(hi,+tlTo.value+step);tlFrom.value=+tlTo.value-w;applyTime();
   },120);
-  drawWd();
+  applyTime();
 });
+
+// ---- luoghi antichi da Pleiades (CC BY 3.0): marcatori creati una volta, filtri che li aggiungono o tolgono
+const PLG={insediamento:{label:"Città e insediamenti",color:"#3d5a80"},edificio:{label:"Ville, terme, teatri, edifici",color:"#a0606e"},
+  culto:{label:"Santuari, templi, necropoli",color:"#6d597a"},infrastruttura:{label:"Ponti, stazioni, porti, acquedotti, mura",color:"#8a6d1f"},
+  difesa:{label:"Forti, castelli, nuraghi",color:"#2a6f4e"},sito:{label:"Altri siti archeologici",color:"#6f6f6f"}};
+const activePl=new Set(Object.keys(PLG));let pl=[];
+{
+  const box=document.getElementById("plGroups");
+  for(const k in PLG){
+    const l=document.createElement("label");
+    l.innerHTML=`<input type="checkbox" checked><span class="sw"></span>`;
+    l.querySelector(".sw").style.cssText=`background:${PLG[k].color}55;border-color:${PLG[k].color};border-radius:50%`;
+    l.append(PLG[k].label);
+    l.firstChild.addEventListener("change",e=>{e.target.checked?activePl.add(k):activePl.delete(k);filterPl();});
+    box.appendChild(l);
+  }
+}
+const plRadius=()=>map.getZoom()<8?2.5:map.getZoom()<11?4:6;
+function plPopup(p){
+  const d=document.createElement("div"),h=document.createElement("strong");h.textContent=p.name;d.appendChild(h);
+  const add=txt=>{const e=document.createElement("div");e.textContent=txt;d.appendChild(e);};
+  add(p.tipi.join(", "));
+  add(p.da==null?"Datazione non indicata":p.a==null?`Attestato dal ${fmtY(p.da)} all'età moderna`:`Attestato: ${fmtY(p.da)} – ${fmtY(p.a)}`);
+  add(`Posizione: ${p.precisione}`);
+  if(/^\d+$/.test(p.pleiades)){
+    const x=document.createElement("a");x.href=`https://pleiades.stoa.org/places/${p.pleiades}`;x.textContent="Scheda Pleiades";x.target="_blank";x.rel="noopener";
+    const w=document.createElement("div");w.style.marginTop="6px";w.appendChild(x);d.appendChild(w);
+  }
+  return d;
+}
+function buildPl(features){
+  const r=plRadius();
+  pl=features.map(f=>{
+    const p=f.properties,[lon,lat]=f.geometry.coordinates,g=PLG[p.gruppo]||PLG.sito;
+    const m=L.circleMarker([lat,lon],{radius:r,color:p.precisione==="precisa"?"#fff":g.color,weight:1.5,
+      dashArray:p.precisione==="precisa"?null:"2 3",fillColor:g.color,fillOpacity:p.precisione==="precisa"?.9:.45});
+    m.bindPopup(()=>plPopup(p));
+    return {p,m};
+  });
+  filterPl();
+}
+function filterPl(){
+  let n=0;
+  for(const {p,m} of pl){
+    const on=activePl.has(p.gruppo)&&inTime(p.da,p.a??Infinity);
+    if(on){n++;if(!G.pl.hasLayer(m))G.pl.addLayer(m);}else if(G.pl.hasLayer(m))G.pl.removeLayer(m);
+  }
+  plCount=pl.length?`${n} luoghi antichi su ${pl.length}`:"";showCount();
+}
+map.on("zoomend",()=>{const r=plRadius();for(const {m} of pl)m.setRadius(r);});
+getJson("data/luoghi_pleiades.geojson").then(j=>buildPl(j.features)).catch(()=>{});
 const OVS={strada:{color:"#a8431f",weight:3,dashArray:"8 6"},area:{color:"#9a7420",weight:2,fillOpacity:.2},trincea:{color:"#1e2b30",weight:3,dashArray:"2 6"}};
 function drawOverview(f){
   const p=f.properties;
@@ -305,9 +367,8 @@ function toggleOverview(){const on=map.getZoom()<MINZ;on?map.addLayer(G.demo):ma
 map.on("zoomend",toggleOverview);
 
 // Battaglie: il file scaricato da Wikidata; se manca, il piccolo file di esempio.
-const getJson=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();});
 Promise.all([getJson("data/battaglie_wikidata.geojson").catch(()=>getJson("data/battaglie.geojson")),getJson("data/livelli.geojson"),getJson("data/italia.geojson")]).then(([a,b,c])=>{
-  wd=a.features;initTimeline();drawWd();b.features.concat(c.features).forEach(drawOverview);toggleOverview();
+  wd=a.features;initTimeline();applyTime();b.features.concat(c.features).forEach(drawOverview);toggleOverview();
 }).catch(()=>{document.getElementById("count").textContent="Dati locali non caricati: avvia un server (vedi README).";});
 
 // ---- strade romane Itiner-e (CC BY 4.0), già ritagliate sull'Italia

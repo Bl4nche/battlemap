@@ -52,6 +52,18 @@ Fonti per dati reali:
 - **Itiner-e**: dataset aperto delle strade romane (CC BY 4.0), da convertire in GeoJSON.
 - **Catalogo Generale dei Beni Culturali / Vincoli in Rete**: per aree archeologiche e vincolate.
 
+## Luoghi antichi (Pleiades)
+
+`data/luoghi_pleiades.geojson` contiene circa 4.500 luoghi del mondo antico in Italia dal gazetteer **Pleiades** (https://pleiades.stoa.org, CC BY 3.0). Sono raggruppati in città e insediamenti; ville, terme, teatri ed edifici; santuari, templi e necropoli; ponti, stazioni, porti, acquedotti e mura; forti, castelli e nuraghi; altri siti archeologici. Sono esclusi gli elementi naturali (fiumi, monti), le regioni, i popoli e i luoghi non localizzati. Bordo tratteggiato = posizione approssimativa secondo Pleiades.
+
+Anche questi luoghi seguono il cursore temporale: un luogo è visibile se è attestato nell'intervallo scelto. Le date di Pleiades sono per periodi ampi (per esempio "romano", 30 a.C. – 300 d.C.), non anni precisi; i luoghi attestati fino all'età moderna sono considerati ancora esistenti.
+
+Per aggiornarli (scarica circa 7 MB):
+
+```bash
+python scripts/import_pleiades.py
+```
+
 ## Italia: strade romane (Itiner-e) e città scomparse
 
 `data/strade_itinere.geojson` contiene 921 strade romane d'Italia dal dataset **Itiner-e** (de Soto et al., CC BY 4.0, https://zenodo.org/records/17122148), già ritagliate sull'Italia e semplificate (1,2 MB). Si caricano a ogni zoom, senza passare da Overpass. Linea continua = tracciato certo, tratteggiata = ricostruito da fonti e immagini (la grande maggioranza).
