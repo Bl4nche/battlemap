@@ -323,8 +323,9 @@ const bordersEl=document.getElementById("borders"),bordersNote=document.getEleme
 const hbCache=new Map();let hbYear=null,hbReq=0;
 // stesso colore per tutti i territori soggetti alla stessa potenza
 const hbColor=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))|0;return `hsl(${Math.abs(h)%360},40%,42%)`;};
-// l'istantanea disponibile più vicina al centro dell'intervallo scelto
-const hbTarget=()=>{const mid=(+tlFrom.value + +tlTo.value)/2;return HB_YEARS.reduce((a,b)=>Math.abs(b-mid)<Math.abs(a-mid)?b:a);};
+// l'ultima istantanea non successiva al centro dell'intervallo: mai confini "dal futuro"
+// (per il 1859 vale il 1815, non il 1878 a Unità già fatta)
+const hbTarget=()=>{const mid=(+tlFrom.value + +tlTo.value)/2;return HB_YEARS.filter(y=>y<=mid).pop()??HB_YEARS[0];};
 async function updateBorders(){
   if(!bordersEl.checked){map.removeLayer(G.confini);bordersNote.textContent="";return;}
   map.addLayer(G.confini);
@@ -342,7 +343,7 @@ async function updateBorders(){
       onEachFeature:(f,l)=>{const p=f.properties;
         l.bindTooltip(p.SUBJECTO&&p.SUBJECTO!==p.NAME?`${p.NAME} (${p.SUBJECTO})`:p.NAME,{sticky:true});}
     }).addTo(G.confini);
-    bordersNote.textContent=`Confini del ${fmtY(y)}, l'istantanea più vicina all'intervallo scelto. Tratteggio = confine approssimativo. Passa il mouse su un territorio per il nome.`;
+    bordersNote.textContent=`Confini del ${fmtY(y)}, l'ultima istantanea disponibile prima del centro dell'intervallo. Tratteggio = confine approssimativo. Passa il mouse su un territorio per il nome.`;
   }catch{
     if(req===hbReq){hbYear=null;bordersNote.textContent="Confini non disponibili: controlla la connessione e riprova.";}
   }
