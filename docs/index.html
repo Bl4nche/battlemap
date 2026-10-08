@@ -24,6 +24,12 @@ label{display:block;cursor:pointer}
 #status:empty{display:none}
 #search{display:flex;gap:6px;margin:0 0 14px}
 #search input{flex:1;min-width:0;padding:7px 9px;border:1px solid var(--line);border-radius:6px;font:inherit}
+#timeline{margin:4px 0 10px}
+#tlOut{font:600 17px/1.3 Georgia,serif;margin-bottom:4px}
+.tl{display:grid;grid-template-columns:28px 1fr;align-items:center;gap:6px;font-size:13.5px}
+.tl input{width:100%;accent-color:var(--moss)}
+#play{margin-top:8px;padding:5px 12px;border:1px solid var(--moss);border-radius:6px;background:#fff;color:var(--moss);font:inherit;cursor:pointer}
+#play[aria-pressed=true]{background:var(--moss);color:#fff}
 #search button{padding:7px 12px;border:0;border-radius:6px;background:var(--moss);color:#fff;font:inherit;cursor:pointer}
 .leaflet-popup-content a{color:var(--moss)}
 :focus-visible{outline:3px solid var(--brass);outline-offset:2px}
@@ -37,6 +43,13 @@ label{display:block;cursor:pointer}
   <form id="search" role="search"><input id="q" type="search" placeholder="Cerca un luogo (es. Cassino)" aria-label="Cerca un luogo"><button>Vai</button></form>
   <fieldset><legend>Cosa mostrare</legend><div id="cats"></div></fieldset>
   <fieldset><legend>Battaglie (Wikidata)</legend>
+    <div id="timeline">
+      <div id="tlOut" aria-live="polite"></div>
+      <label class="tl">Dal <input type="range" id="tlFrom" aria-label="Anno iniziale"></label>
+      <label class="tl">Al <input type="range" id="tlTo" aria-label="Anno finale"></label>
+      <label class="small" style="margin-top:4px"><input type="checkbox" id="undated" checked> Includi battaglie senza data</label>
+      <button type="button" id="play" aria-pressed="false">▶ Scorri nel tempo</button>
+    </div>
     <div id="periods"></div>
     <p class="small" style="margin-top:8px">Il cerchio è un'area approssimativa, non un punto esatto.</p>
   </fieldset>
@@ -217,18 +230,67 @@ map.on("moveend",()=>{clearTimeout(timer);timer=setTimeout(loadView,500);});
 
 // ---- battaglie da Wikidata e livelli panoramici (a zoom basso)
 let wd=[];
+const fmtY=y=>y<0?`${-y} a.C.`:`${y}`;
+const tlFrom=document.getElementById("tlFrom"),tlTo=document.getElementById("tlTo"),undated=document.getElementById("undated");
+// Una battaglia è visibile se il suo intervallo (anno o inizio–fine) tocca l'intervallo scelto.
+function inTime(p){
+  if(p.year==null)return undated.checked;
+  return (p.year_end??p.year)>=+tlFrom.value&&p.year<=+tlTo.value;
+}
 function drawWd(){
   G.wd.clearLayers();let n=0;
+  document.getElementById("tlOut").textContent=`${fmtY(+tlFrom.value)} – ${fmtY(+tlTo.value)}`;
   for(const f of wd){
-    const p=f.properties;if(!activeP.has(p.period))continue;
+    const p=f.properties;if(!activeP.has(p.period)||!inTime(p))continue;
     const [lon,lat]=f.geometry.coordinates,s=REL[p.reliability]||REL.media;
     const c=L.circle([lat,lon],{radius:s.r,color:s.c,weight:2,fillOpacity:.25}).addTo(G.wd);
-    const d=document.createElement("div"),h=document.createElement("strong");h.textContent=p.name;
-    d.append(h,document.createElement("br"),`${p.year==null?"data ignota":p.year<0?-p.year+" a.C.":p.year} · ${PERIODS[p.period]||"Altro"}`,document.createElement("br"),`Posizione: ${p.reliability}`);
-    c.bindPopup(d);n++;
+    c.bindPopup(()=>wdPopup(p));n++;
   }
-  document.getElementById("count").textContent=`${n} battaglie da Wikidata mostrate`;
+  document.getElementById("count").textContent=`${n} battaglie mostrate su ${wd.length}`;
 }
+function wdPopup(p){
+  const d=document.createElement("div"),h=document.createElement("strong");h.textContent=p.name;d.appendChild(h);
+  const add=txt=>{const e=document.createElement("div");e.textContent=txt;d.appendChild(e);};
+  const when=p.year==null?"data ignota":p.year_end!=null?`${fmtY(p.year)} – ${fmtY(p.year_end)}`:fmtY(p.year);
+  add(`${when} · ${PERIODS[p.period]||"Altro"}`);
+  if(p.part_of&&p.part_of.length)add("Parte di: "+p.part_of.join(", "));
+  add(`Posizione: ${p.reliability}`);
+  const links=document.createElement("div");links.style.marginTop="6px";
+  const a=(href,txt)=>{const x=document.createElement("a");x.href=href;x.textContent=txt;x.target="_blank";x.rel="noopener";links.append(x," ");};
+  if(/^https:\/\/[a-z]{2,3}\.wikipedia\.org\/wiki\//.test(p.wikipedia||""))a(p.wikipedia,"Wikipedia");
+  if(/^Q\d+$/.test(p.wikidata||""))a(`https://www.wikidata.org/wiki/${p.wikidata}`,"Wikidata");
+  if(links.childNodes.length)d.appendChild(links);
+  return d;
+}
+function initTimeline(){
+  const ys=wd.flatMap(f=>[f.properties.year,f.properties.year_end]).filter(y=>y!=null);
+  if(!ys.length){document.getElementById("timeline").hidden=true;return;}
+  const lo=Math.floor(Math.min(...ys)/10)*10,hi=Math.ceil(Math.max(...ys)/10)*10;
+  for(const el of [tlFrom,tlTo]){el.min=lo;el.max=hi;el.step=1;}
+  tlFrom.value=lo;tlTo.value=hi;
+}
+// i due cursori non si scavalcano
+tlFrom.addEventListener("input",()=>{if(+tlFrom.value>+tlTo.value)tlTo.value=tlFrom.value;drawWd();});
+tlTo.addEventListener("input",()=>{if(+tlTo.value<+tlFrom.value)tlFrom.value=tlTo.value;drawWd();});
+undated.addEventListener("change",drawWd);
+// "Scorri nel tempo": una finestra di anni avanza da sola fino alla fine della linea temporale
+const play=document.getElementById("play");let playTimer=null;
+function stopPlay(){clearInterval(playTimer);playTimer=null;play.setAttribute("aria-pressed","false");play.textContent="▶ Scorri nel tempo";}
+play.addEventListener("click",()=>{
+  if(playTimer){stopPlay();return;}
+  const lo=+tlFrom.min,hi=+tlFrom.max;
+  let w=+tlTo.value-+tlFrom.value;
+  if(w>=(hi-lo)/2||w<1)w=Math.round((hi-lo)/25);   // finestra di default se l'intervallo è troppo ampio o nullo
+  if(+tlFrom.value+w>=hi)tlFrom.value=lo;           // ricomincia dall'inizio se si è già in fondo
+  tlTo.value=+tlFrom.value+w;
+  const step=Math.max(1,Math.round((hi-lo)/300));
+  play.setAttribute("aria-pressed","true");play.textContent="❚❚ Ferma";
+  playTimer=setInterval(()=>{
+    if(+tlTo.value>=hi){stopPlay();return;}
+    tlTo.value=Math.min(hi,+tlTo.value+step);tlFrom.value=+tlTo.value-w;drawWd();
+  },120);
+  drawWd();
+});
 const OVS={strada:{color:"#a8431f",weight:3,dashArray:"8 6"},area:{color:"#9a7420",weight:2,fillOpacity:.2},trincea:{color:"#1e2b30",weight:3,dashArray:"2 6"}};
 function drawOverview(f){
   const p=f.properties;
@@ -242,8 +304,10 @@ function drawOverview(f){
 function toggleOverview(){const on=map.getZoom()<MINZ;on?map.addLayer(G.demo):map.removeLayer(G.demo);}
 map.on("zoomend",toggleOverview);
 
-Promise.all(["data/battaglie.geojson","data/livelli.geojson","data/italia.geojson"].map(u=>fetch(u).then(r=>r.json()))).then(([a,b,c])=>{
-  wd=a.features;drawWd();b.features.concat(c.features).forEach(drawOverview);toggleOverview();
+// Battaglie: il file scaricato da Wikidata; se manca, il piccolo file di esempio.
+const getJson=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();});
+Promise.all([getJson("data/battaglie_wikidata.geojson").catch(()=>getJson("data/battaglie.geojson")),getJson("data/livelli.geojson"),getJson("data/italia.geojson")]).then(([a,b,c])=>{
+  wd=a.features;initTimeline();drawWd();b.features.concat(c.features).forEach(drawOverview);toggleOverview();
 }).catch(()=>{document.getElementById("count").textContent="Dati locali non caricati: avvia un server (vedi README).";});
 
 // ---- strade romane Itiner-e (CC BY 4.0), già ritagliate sull'Italia

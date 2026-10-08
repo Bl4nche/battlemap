@@ -10,13 +10,17 @@ Mappa interattiva dei luoghi di battaglie storiche, costruita su dati aperti (Wi
 python -m http.server 8000     # poi apri http://localhost:8000
 ```
 
-Per scaricare più dati da Wikidata (default: Italia):
+## Battaglie da Wikidata e cursore temporale
+
+`data/battaglie_wikidata.geojson` contiene le battaglie in Italia con coordinate presenti su Wikidata (circa 400). Per ognuna: anno, oppure anni di inizio e fine (assedi, campagne), guerra o campagna di cui fa parte e link alla voce di Wikipedia, in italiano se esiste. Per aggiornarle:
 
 ```bash
-python scripts/fetch_wikidata.py --out data/battaglie_wikidata.geojson
+python scripts/fetch_wikidata.py
 ```
 
-Poi punta `fetch(...)` in `index.html` al nuovo file. I dati in `data/battaglie.geojson` sono un esempio con coordinate approssimative.
+Gli anni a.C. sono negativi (-216 = 216 a.C.): lo script converte la numerazione astronomica usata dal servizio SPARQL di Wikidata, dove l'anno 0 esiste ed è l'1 a.C. Se il file manca, la mappa usa il piccolo esempio in `data/battaglie.geojson`.
+
+Nel pannello, il **cursore temporale** (Dal/Al) mostra solo le battaglie il cui periodo tocca l'intervallo scelto, in combinazione con i filtri per epoca. "Scorri nel tempo" fa avanzare da sola una finestra di anni; le battaglie senza data si possono includere o escludere.
 
 ## Fonti e licenze
 
