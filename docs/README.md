@@ -67,6 +67,14 @@ I servizi WMS regionali dichiarano "nessun costo e nessun vincolo di accesso". P
 
 Scartate dopo verifica: l'IGM 1:25.000 del Geoportale Nazionale (il servizio passa da HTTPS a HTTP, che il browser blocca su GitHub Pages, e il foglio della zona 33 restituisce errore) e i rilievi asburgici di Mapire/Arcanum (servizio a pagamento: senza accordo restituisce immagini vuote).
 
+## Confini politici dell'epoca
+
+Nella linea del tempo, "Confini politici dell'epoca" mostra gli Stati e i territori dal dataset **historical-basemaps** di A. Ourednik (https://github.com/aourednik/historical-basemaps). Il dataset ha istantanee per anni fissi (per esempio 300 a.C., 200 a.C., 1200, 1492, 1815, 1878, 1914): la mappa usa l'ultima istantanea non successiva al centro dell'intervallo scelto, così non mostra mai confini "dal futuro" (per il 1859 usa il 1815, non il 1878).
+
+I territori soggetti alla stessa potenza hanno lo stesso colore; tratteggio = confine approssimativo secondo il dataset. I nomi sono in inglese, come nell'originale.
+
+I file non sono nel repository: la pagina li scarica al bisogno da jsDelivr, bloccati su un commit preciso, perché il dataset è distribuito con licenza GPL-3.0. I confini sono pensati per la scala di continente: vanno letti come indicativi, specie nell'antichità e nel Medioevo.
+
 ## Luoghi antichi (Pleiades)
 
 `data/luoghi_pleiades.geojson` contiene circa 4.500 luoghi del mondo antico in Italia dal gazetteer **Pleiades** (https://pleiades.stoa.org, CC BY 3.0). Sono raggruppati in città e insediamenti; ville, terme, teatri ed edifici; santuari, templi e necropoli; ponti, stazioni, porti, acquedotti e mura; forti, castelli e nuraghi; altri siti archeologici. Sono esclusi gli elementi naturali (fiumi, monti), le regioni, i popoli e i luoghi non localizzati. Bordo tratteggiato = posizione approssimativa secondo Pleiades.
