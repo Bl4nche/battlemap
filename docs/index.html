@@ -58,6 +58,8 @@ label{display:block;cursor:pointer}
       <button type="button" id="play" aria-pressed="false">▶ Scorri nel tempo</button>
     </div>
     <p class="small" style="margin:6px 0 0">Vale per battaglie e luoghi antichi.</p>
+    <label style="margin-top:8px"><input type="checkbox" id="borders"> Confini politici dell'epoca</label>
+    <p id="bordersNote" class="small" style="margin:4px 0 0"></p>
   </fieldset>
   <fieldset><legend>Battaglie (Wikidata)</legend>
     <div id="periods"></div>
@@ -69,7 +71,7 @@ label{display:block;cursor:pointer}
   </fieldset>
   <p id="count" class="small"></p>
   <div class="note"><strong>Prima di cercare reperti:</strong> in Italia la ricerca con metal detector senza autorizzazione è vietata dal Codice dei beni culturali (D.Lgs. 42/2004) e i ritrovamenti appartengono allo Stato. Le regole cambiano da paese a paese: informati sempre.</div>
-  <p class="small" style="margin-top:12px">Dati © contributori OpenStreetMap (ODbL), Wikidata (CC0), strade romane da Itiner-e (CC BY 4.0, de Soto et al.), luoghi antichi da Pleiades (CC BY 3.0). Mappe storiche: DARE (J. Åhlfeldt), Regione Toscana (CASTORE), Regione Emilia-Romagna. I tracciati dipendono dalla completezza di OSM: dove manca qualcosa, qualcuno non l'ha ancora mappato.</p>
+  <p class="small" style="margin-top:12px">Dati © contributori OpenStreetMap (ODbL), Wikidata (CC0), strade romane da Itiner-e (CC BY 4.0, de Soto et al.), luoghi antichi da Pleiades (CC BY 3.0). Mappe storiche: DARE (J. Åhlfeldt), Regione Toscana (CASTORE), Regione Emilia-Romagna. Confini: historical-basemaps (A. Ourednik, GPL-3.0). I tracciati dipendono dalla completezza di OSM: dove manca qualcosa, qualcuno non l'ha ancora mappato.</p>
 </aside>
 <div id="map"><div id="status" role="status" aria-live="polite"></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -252,7 +254,7 @@ function inTime(start,end){
   if(start==null)return undated.checked;
   return (end??start)>=+tlFrom.value&&start<=+tlTo.value;
 }
-const applyTime=()=>{drawWd();filterPl();};
+const applyTime=()=>{drawWd();filterPl();updateBorders();};
 function drawWd(){
   G.wd.clearLayers();let n=0;
   document.getElementById("tlOut").textContent=`${fmtY(+tlFrom.value)} – ${fmtY(+tlTo.value)}`;
@@ -309,6 +311,43 @@ play.addEventListener("click",()=>{
   },120);
   applyTime();
 });
+
+// ---- confini storici: historical-basemaps (A. Ourednik, GPL-3.0), letti al bisogno da jsDelivr su un commit fisso
+const HB="https://cdn.jsdelivr.net/gh/aourednik/historical-basemaps@da7a4b735ecef70aebdc9c73e409d8a2500d50f3/geojson/";
+const HB_YEARS=[-2000,-1500,-1000,-700,-500,-400,-323,-300,-200,-100,-1,100,200,300,400,500,600,700,800,900,1000,1100,1200,
+  1279,1300,1400,1492,1500,1530,1600,1650,1700,1715,1783,1800,1815,1878,1880,1900,1914,1920,1930,1938,1945,1960,1994,2000,2010];
+const hbFile=y=>`${HB}world_${y<0?"bc"+(-y):y}.geojson`;
+map.createPane("confini").style.zIndex=350;   // sopra le mappe, sotto marcatori e tracciati
+G.confini=L.layerGroup();
+const bordersEl=document.getElementById("borders"),bordersNote=document.getElementById("bordersNote");
+const hbCache=new Map();let hbYear=null,hbReq=0;
+// stesso colore per tutti i territori soggetti alla stessa potenza
+const hbColor=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))|0;return `hsl(${Math.abs(h)%360},40%,42%)`;};
+// l'istantanea disponibile più vicina al centro dell'intervallo scelto
+const hbTarget=()=>{const mid=(+tlFrom.value + +tlTo.value)/2;return HB_YEARS.reduce((a,b)=>Math.abs(b-mid)<Math.abs(a-mid)?b:a);};
+async function updateBorders(){
+  if(!bordersEl.checked){map.removeLayer(G.confini);bordersNote.textContent="";return;}
+  map.addLayer(G.confini);
+  const y=hbTarget();if(y===hbYear)return;
+  hbYear=y;const req=++hbReq;
+  bordersNote.textContent=`Carico i confini del ${fmtY(y)}…`;
+  if(!hbCache.has(y))hbCache.set(y,getJson(hbFile(y)).catch(e=>{hbCache.delete(y);throw e;}));
+  try{
+    const j=await hbCache.get(y);
+    if(req!==hbReq)return;   // nel frattempo il cursore ha chiesto un altro anno
+    G.confini.clearLayers();
+    L.geoJSON(j,{pane:"confini",filter:f=>!!f.properties.NAME,
+      style:f=>{const p=f.properties;return {color:hbColor(p.SUBJECTO||p.NAME),weight:p.BORDERPRECISION>=3?1.6:1.1,
+        dashArray:p.BORDERPRECISION===1?"5 4":null,fillOpacity:.12};},
+      onEachFeature:(f,l)=>{const p=f.properties;
+        l.bindTooltip(p.SUBJECTO&&p.SUBJECTO!==p.NAME?`${p.NAME} (${p.SUBJECTO})`:p.NAME,{sticky:true});}
+    }).addTo(G.confini);
+    bordersNote.textContent=`Confini del ${fmtY(y)}, l'istantanea più vicina all'intervallo scelto. Tratteggio = confine approssimativo. Passa il mouse su un territorio per il nome.`;
+  }catch{
+    if(req===hbReq){hbYear=null;bordersNote.textContent="Confini non disponibili: controlla la connessione e riprova.";}
+  }
+}
+bordersEl.addEventListener("change",updateBorders);
 
 // ---- mappe storiche georeferenziate, sovrapposte alla base con trasparenza regolabile
 const TOSCANA=[[42.2,9.6],[44.5,12.4]],EMILIA=[[43.7,9.2],[45.15,12.8]];
