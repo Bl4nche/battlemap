@@ -10,13 +10,17 @@ Mappa interattiva dei luoghi di battaglie storiche, costruita su dati aperti (Wi
 python -m http.server 8000     # poi apri http://localhost:8000
 ```
 
-Per scaricare più dati da Wikidata (default: Italia):
+## Battaglie da Wikidata e cursore temporale
+
+`data/battaglie_wikidata.geojson` contiene le battaglie in Italia con coordinate presenti su Wikidata (circa 400). Per ognuna: anno, oppure anni di inizio e fine (assedi, campagne), guerra o campagna di cui fa parte e link alla voce di Wikipedia, in italiano se esiste. Per aggiornarle:
 
 ```bash
-python scripts/fetch_wikidata.py --out data/battaglie_wikidata.geojson
+python scripts/fetch_wikidata.py
 ```
 
-Poi punta `fetch(...)` in `index.html` al nuovo file. I dati in `data/battaglie.geojson` sono un esempio con coordinate approssimative.
+Gli anni a.C. sono negativi (-216 = 216 a.C.): lo script converte la numerazione astronomica usata dal servizio SPARQL di Wikidata, dove l'anno 0 esiste ed è l'1 a.C. Se il file manca, la mappa usa il piccolo esempio in `data/battaglie.geojson`.
+
+Nel pannello, il **cursore temporale** (Dal/Al) mostra solo le battaglie il cui periodo tocca l'intervallo scelto, in combinazione con i filtri per epoca. "Scorri nel tempo" fa avanzare da sola una finestra di anni; le battaglie senza data si possono includere o escludere.
 
 ## Fonti e licenze
 
@@ -31,7 +35,7 @@ In Italia la ricerca con metal detector senza autorizzazione è vietata dal D.Lg
 ## Roadmap
 
 - [ ] Livello con aree protette e vincolate
-- [ ] Mappe storiche georeferenziate in trasparenza
+- [x] Mappe storiche georeferenziate in trasparenza
 - [ ] Dati da OpenStreetMap (`historic=battlefield`, trincee, bunker)
 - [ ] Verifica manuale e pulizia dei dati con test
 - [ ] Pubblicazione su GitHub Pages
@@ -47,6 +51,33 @@ Fonti per dati reali:
 - **OpenStreetMap**: `python scripts/fetch_osm.py --bbox sud,ovest,nord,est` scarica trincee (`military=trench`), campi di battaglia (`historic=battlefield`) e strade romane (`historic=roman_road`) di un'area piccola.
 - **Itiner-e**: dataset aperto delle strade romane (CC BY 4.0), da convertire in GeoJSON.
 - **Catalogo Generale dei Beni Culturali / Vincoli in Rete**: per aree archeologiche e vincolate.
+
+## Mappe storiche
+
+Nel pannello "Mappe storiche" si sceglie una carta da sovrapporre alla base, con trasparenza regolabile. Sono servite direttamente dagli enti che le pubblicano (nessun file nel repository):
+
+| Carta | Copertura | Fonte |
+|---|---|---|
+| Impero romano verso il 200 d.C. | tutto l'Impero, dettaglio fino a zoom 11 | DARE, Digital Atlas of the Roman Empire (J. Åhlfeldt) |
+| Carta geometrica della Toscana, Inghirami 1830 | Toscana | Regione Toscana, progetto CASTORE (WMS) |
+| Catasto generale toscano, prima metà dell'Ottocento | Toscana, da zoom 14 | Regione Toscana, progetto CASTORE (WMS) |
+| Carte topografiche austriache e sarde 1828–1853 | Emilia-Romagna, leggibile da zoom 12 | Regione Emilia-Romagna, Carta storica regionale (WMS) |
+
+I servizi WMS regionali dichiarano "nessun costo e nessun vincolo di accesso". Per DARE il sito non indica una licenza esplicita per le tile: le citiamo come fonte.
+
+Scartate dopo verifica: l'IGM 1:25.000 del Geoportale Nazionale (il servizio passa da HTTPS a HTTP, che il browser blocca su GitHub Pages, e il foglio della zona 33 restituisce errore) e i rilievi asburgici di Mapire/Arcanum (servizio a pagamento: senza accordo restituisce immagini vuote).
+
+## Luoghi antichi (Pleiades)
+
+`data/luoghi_pleiades.geojson` contiene circa 4.500 luoghi del mondo antico in Italia dal gazetteer **Pleiades** (https://pleiades.stoa.org, CC BY 3.0). Sono raggruppati in città e insediamenti; ville, terme, teatri ed edifici; santuari, templi e necropoli; ponti, stazioni, porti, acquedotti e mura; forti, castelli e nuraghi; altri siti archeologici. Sono esclusi gli elementi naturali (fiumi, monti), le regioni, i popoli e i luoghi non localizzati. Bordo tratteggiato = posizione approssimativa secondo Pleiades.
+
+Anche questi luoghi seguono il cursore temporale: un luogo è visibile se è attestato nell'intervallo scelto. Le date di Pleiades sono per periodi ampi (per esempio "romano", 30 a.C. – 300 d.C.), non anni precisi; i luoghi attestati fino all'età moderna sono considerati ancora esistenti.
+
+Per aggiornarli (scarica circa 7 MB):
+
+```bash
+python scripts/import_pleiades.py
+```
 
 ## Italia: strade romane (Itiner-e) e città scomparse
 
