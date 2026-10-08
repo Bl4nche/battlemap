@@ -48,11 +48,13 @@ Fonti per dati reali:
 - **Itiner-e**: dataset aperto delle strade romane (CC BY 4.0), da convertire in GeoJSON.
 - **Catalogo Generale dei Beni Culturali / Vincoli in Rete**: per aree archeologiche e vincolate.
 
-## Italia: strade antiche e città scomparse
+## Italia: strade romane (Itiner-e) e città scomparse
 
-`data/italia.geojson` contiene 8 strade romane (Appia, Flaminia, Emilia, Aurelia, Cassia, Salaria, Popilia, Postumia) e 12 città scomparse, sepolte, abbandonate o sommerse. **Tracciati e posizioni sono approssimativi**: le strade sono schematiche per tappe principali. Per tracciati precisi usa OSM (`scripts/fetch_osm.py`, una regione per volta) o Itiner-e.
+`data/strade_itinere.geojson` contiene 921 strade romane d'Italia dal dataset **Itiner-e** (de Soto et al., CC BY 4.0, https://zenodo.org/records/17122148), già ritagliate sull'Italia e semplificate (1,2 MB). Si caricano a ogni zoom, senza passare da Overpass. Linea continua = tracciato certo, tratteggiata = ricostruito da fonti e immagini (la grande maggioranza).
 
-Per ampliare l'elenco delle città: `python scripts/fetch_citta.py`, poi aggiungi il file in `index.html` accanto agli altri.
+Per rigenerarle: scarica `itinere_roads.geojson` da Zenodo (78 MB) e lancia `python scripts/import_itinere.py itinere_roads.geojson`. Il ritaglio usa un contorno grossolano dell'Italia: vicino ai confini possono restare brevi tratti di Svizzera, Francia o Slovenia.
+
+`data/italia.geojson` contiene 12 città scomparse, sepolte, abbandonate o sommerse, con posizioni approssimative. Per ampliare l'elenco: `python scripts/fetch_citta.py`.
 
 ## Dati precisi da OpenStreetMap (dal vivo)
 

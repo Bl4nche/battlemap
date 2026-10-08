@@ -42,7 +42,7 @@ label{display:block;cursor:pointer}
   </fieldset>
   <p id="count" class="small"></p>
   <div class="note"><strong>Prima di cercare reperti:</strong> in Italia la ricerca con metal detector senza autorizzazione è vietata dal Codice dei beni culturali (D.Lgs. 42/2004) e i ritrovamenti appartengono allo Stato. Le regole cambiano da paese a paese: informati sempre.</div>
-  <p class="small" style="margin-top:12px">Dati © contributori OpenStreetMap (ODbL), Wikidata (CC0). I tracciati dipendono dalla completezza di OSM: dove manca qualcosa, qualcuno non l'ha ancora mappato.</p>
+  <p class="small" style="margin-top:12px">Dati © contributori OpenStreetMap (ODbL), Wikidata (CC0), strade romane da Itiner-e (CC BY 4.0, de Soto et al.). I tracciati dipendono dalla completezza di OSM: dove manca qualcosa, qualcuno non l'ha ancora mappato.</p>
 </aside>
 <div id="map"><div id="status" role="status" aria-live="polite"></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -82,7 +82,7 @@ const base={
 L.control.layers(base,{},{collapsed:true}).addTo(map);
 const G={},shown={};
 for(const k in CATS){G[k]=L.layerGroup().addTo(map);shown[k]=true;}
-G.wd=L.layerGroup().addTo(map);G.demo=L.layerGroup().addTo(map);
+G.itinere=L.layerGroup().addTo(map);G.wd=L.layerGroup().addTo(map);G.demo=L.layerGroup().addTo(map);
 
 // ---- filtri laterali
 const catBox=document.getElementById("cats");
@@ -92,6 +92,14 @@ for(const k of order){
   l.querySelector(".sw").style.cssText=`background:${CATS[k].color}33;border-color:${CATS[k].color}`;
   l.append(CATS[k].label);
   l.firstChild.addEventListener("change",e=>{shown[k]=e.target.checked;e.target.checked?(map.addLayer(G[k]),loadView()):map.removeLayer(G[k]);});
+  catBox.appendChild(l);
+}
+{ // Strade romane Itiner-e: presenti a ogni zoom, non dipendono da Overpass
+  const l=document.createElement("label");
+  l.innerHTML=`<input type="checkbox" checked><span class="sw"></span>`;
+  l.querySelector(".sw").style.cssText="background:#7a1f0f33;border-color:#7a1f0f";
+  l.append("Strade romane (Itiner-e)");
+  l.firstChild.addEventListener("change",e=>{e.target.checked?map.addLayer(G.itinere):map.removeLayer(G.itinere);});
   catBox.appendChild(l);
 }
 const activeP=new Set(Object.keys(PERIODS));
@@ -237,6 +245,22 @@ map.on("zoomend",toggleOverview);
 Promise.all(["data/battaglie.geojson","data/livelli.geojson","data/italia.geojson"].map(u=>fetch(u).then(r=>r.json()))).then(([a,b,c])=>{
   wd=a.features;drawWd();b.features.concat(c.features).forEach(drawOverview);toggleOverview();
 }).catch(()=>{document.getElementById("count").textContent="Dati locali non caricati: avvia un server (vedi README).";});
+
+// ---- strade romane Itiner-e (CC BY 4.0), già ritagliate sull'Italia
+fetch("data/strade_itinere.geojson").then(r=>r.json()).then(j=>{
+  L.geoJSON(j,{
+    style:f=>({color:"#7a1f0f",weight:f.properties.tipo==="principale"?4:2.5,opacity:.85,dashArray:f.properties.certezza==="certo"?null:"7 5"}),
+    onEachFeature:(f,l)=>{
+      const p=f.properties,d=document.createElement("div"),h=document.createElement("strong");
+      h.textContent="Strada romana: "+p.name;
+      const t=document.createElement("div");
+      t.textContent=`Strada ${p.tipo} · tracciato ${p.certezza}`+(p.certezza==="ricostruito"?" (ricostruito da fonti e immagini, non scavato)":"");
+      const c=document.createElement("div");c.className="small";c.textContent="Fonte: Itiner-e (de Soto et al.), CC BY 4.0";
+      d.append(h,t,c);if(p.note){const n=document.createElement("div");n.textContent=p.note;d.appendChild(n);}
+      l.bindPopup(d);
+    }
+  }).addTo(G.itinere);
+}).catch(()=>{});
 
 // ---- ricerca luogo (Nominatim)
 document.getElementById("search").addEventListener("submit",async ev=>{
