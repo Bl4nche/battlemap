@@ -35,7 +35,7 @@ In Italia la ricerca con metal detector senza autorizzazione è vietata dal D.Lg
 ## Roadmap
 
 - [ ] Livello con aree protette e vincolate
-- [ ] Mappe storiche georeferenziate in trasparenza
+- [x] Mappe storiche georeferenziate in trasparenza
 - [ ] Dati da OpenStreetMap (`historic=battlefield`, trincee, bunker)
 - [ ] Verifica manuale e pulizia dei dati con test
 - [ ] Pubblicazione su GitHub Pages
@@ -51,6 +51,21 @@ Fonti per dati reali:
 - **OpenStreetMap**: `python scripts/fetch_osm.py --bbox sud,ovest,nord,est` scarica trincee (`military=trench`), campi di battaglia (`historic=battlefield`) e strade romane (`historic=roman_road`) di un'area piccola.
 - **Itiner-e**: dataset aperto delle strade romane (CC BY 4.0), da convertire in GeoJSON.
 - **Catalogo Generale dei Beni Culturali / Vincoli in Rete**: per aree archeologiche e vincolate.
+
+## Mappe storiche
+
+Nel pannello "Mappe storiche" si sceglie una carta da sovrapporre alla base, con trasparenza regolabile. Sono servite direttamente dagli enti che le pubblicano (nessun file nel repository):
+
+| Carta | Copertura | Fonte |
+|---|---|---|
+| Impero romano verso il 200 d.C. | tutto l'Impero, dettaglio fino a zoom 11 | DARE, Digital Atlas of the Roman Empire (J. Åhlfeldt) |
+| Carta geometrica della Toscana, Inghirami 1830 | Toscana | Regione Toscana, progetto CASTORE (WMS) |
+| Catasto generale toscano, prima metà dell'Ottocento | Toscana, da zoom 14 | Regione Toscana, progetto CASTORE (WMS) |
+| Carte topografiche austriache e sarde 1828–1853 | Emilia-Romagna, leggibile da zoom 12 | Regione Emilia-Romagna, Carta storica regionale (WMS) |
+
+I servizi WMS regionali dichiarano "nessun costo e nessun vincolo di accesso". Per DARE il sito non indica una licenza esplicita per le tile: le citiamo come fonte.
+
+Scartate dopo verifica: l'IGM 1:25.000 del Geoportale Nazionale (il servizio passa da HTTPS a HTTP, che il browser blocca su GitHub Pages, e il foglio della zona 33 restituisce errore) e i rilievi asburgici di Mapire/Arcanum (servizio a pagamento: senza accordo restituisce immagini vuote).
 
 ## Luoghi antichi (Pleiades)
 
