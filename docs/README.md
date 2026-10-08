@@ -62,8 +62,14 @@ Nel pannello "Mappe storiche" si sceglie una carta da sovrapporre alla base, con
 | Carta geometrica della Toscana, Inghirami 1830 | Toscana | Regione Toscana, progetto CASTORE (WMS) |
 | Catasto generale toscano, prima metà dell'Ottocento | Toscana, da zoom 14 | Regione Toscana, progetto CASTORE (WMS) |
 | Carte topografiche austriache e sarde 1828–1853 | Emilia-Romagna, leggibile da zoom 12 | Regione Emilia-Romagna, Carta storica regionale (WMS) |
+| Rilievo LiDAR ombreggiato 2014–2018 | Trentino, dettaglio da zoom 14 | Provincia autonoma di Trento (WMS) |
+| Rilievo ombreggiato 0,5 m / 2,5 m | Alto Adige | Provincia autonoma di Bolzano (WMS) |
 
 I servizi WMS regionali dichiarano "nessun costo e nessun vincolo di accesso". Per DARE il sito non indica una licenza esplicita per le tile: le citiamo come fonte.
+
+Il rilievo LiDAR toglie la vegetazione e mostra la forma del terreno: sul fronte trentino e altoatesino della Prima guerra mondiale (Pasubio, Zugna, altipiani, Ortles-Cevedale) si leggono trincee, camminamenti, postazioni e strade militari. I resti della Grande Guerra sono tutelati dalla legge 78/2001.
+
+Scartati per il rilievo: Friuli Venezia Giulia e Veneto (pubblicano i dati LiDAR solo da scaricare, non un rilievo ombreggiato consultabile via WMS) e Slovenia (l'ottima visualizzazione LiDAR di ZRC SAZU, che coprirebbe Caporetto e l'alto Isonzo, è servita solo nel sistema di coordinate sloveno EPSG:3794 e non si sovrappone a una mappa web standard).
 
 Scartate dopo verifica: l'IGM 1:25.000 del Geoportale Nazionale (il servizio passa da HTTPS a HTTP, che il browser blocca su GitHub Pages, e il foglio della zona 33 restituisce errore) e i rilievi asburgici di Mapire/Arcanum (servizio a pagamento: senza accordo restituisce immagini vuote).
 

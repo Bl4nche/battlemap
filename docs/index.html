@@ -70,8 +70,8 @@ label{display:block;cursor:pointer}
     <p class="small" style="margin-top:8px">Bordo tratteggiato = posizione approssimativa.</p>
   </fieldset>
   <p id="count" class="small"></p>
-  <div class="note"><strong>Prima di cercare reperti:</strong> in Italia la ricerca con metal detector senza autorizzazione è vietata dal Codice dei beni culturali (D.Lgs. 42/2004) e i ritrovamenti appartengono allo Stato. Le regole cambiano da paese a paese: informati sempre.</div>
-  <p class="small" style="margin-top:12px">Dati © contributori OpenStreetMap (ODbL), Wikidata (CC0), strade romane da Itiner-e (CC BY 4.0, de Soto et al.), luoghi antichi da Pleiades (CC BY 3.0). Mappe storiche: DARE (J. Åhlfeldt), Regione Toscana (CASTORE), Regione Emilia-Romagna. Confini: historical-basemaps (A. Ourednik, GPL-3.0). I tracciati dipendono dalla completezza di OSM: dove manca qualcosa, qualcuno non l'ha ancora mappato.</p>
+  <div class="note"><strong>Prima di cercare reperti:</strong> in Italia la ricerca con metal detector senza autorizzazione è vietata dal Codice dei beni culturali (D.Lgs. 42/2004) e i ritrovamenti appartengono allo Stato. Anche i resti della Prima guerra mondiale (trincee, manufatti, reperti) sono tutelati dalla legge 78/2001. Le regole cambiano da paese a paese: informati sempre.</div>
+  <p class="small" style="margin-top:12px">Dati © contributori OpenStreetMap (ODbL), Wikidata (CC0), strade romane da Itiner-e (CC BY 4.0, de Soto et al.), luoghi antichi da Pleiades (CC BY 3.0). Mappe storiche: DARE (J. Åhlfeldt), Regione Toscana (CASTORE), Regione Emilia-Romagna; rilievo LiDAR: Provincia autonoma di Trento, Provincia autonoma di Bolzano. Confini: historical-basemaps (A. Ourednik, GPL-3.0). I tracciati dipendono dalla completezza di OSM: dove manca qualcosa, qualcuno non l'ha ancora mappato.</p>
 </aside>
 <div id="map"><div id="status" role="status" aria-live="polite"></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -352,6 +352,7 @@ bordersEl.addEventListener("change",updateBorders);
 
 // ---- mappe storiche georeferenziate, sovrapposte alla base con trasparenza regolabile
 const TOSCANA=[[42.2,9.6],[44.5,12.4]],EMILIA=[[43.7,9.2],[45.15,12.8]];
+const TRENTINO=[[45.67,10.44],[46.54,11.97]],ALTOADIGE=[[46.22,10.38],[47.09,12.48]];
 const HIST={
   nessuna:{label:"Nessuna"},
   dare:{label:"Impero romano (DARE)",note:"Ricostruzione moderna del mondo romano verso il 200 d.C.: città, strade, confini. Dettaglio fino a zoom 11.",
@@ -365,7 +366,14 @@ const HIST={
       attribution:"Regione Toscana, CASTORE"})},
   emilia:{label:"Emilia-Romagna 1828–1853",bounds:EMILIA,note:"Mosaico delle carte topografiche austriache e sarde 1828–1853. Leggibile da zoom 12, solo in Emilia-Romagna.",
     layer:()=>L.tileLayer.wms("https://servizigis.regione.emilia-romagna.it/wms/carta_storica_regionale_1853",{layers:"carta_storica_regionale_1853",format:"image/png",transparent:true,zIndex:10,
-      attribution:"Regione Emilia-Romagna, Carta storica regionale"})}
+      attribution:"Regione Emilia-Romagna, Carta storica regionale"})},
+  // rilievo LiDAR ombreggiato: senza vegetazione si leggono trincee, camminamenti e postazioni del fronte 1915–18
+  lidartn:{label:"Rilievo LiDAR – Trentino",bounds:TRENTINO,note:"Rilievo LiDAR 2014–2018 ombreggiato (Provincia autonoma di Trento): da zoom 14 si leggono trincee, camminamenti e postazioni della Grande Guerra, anche sotto il bosco.",
+    layer:()=>L.tileLayer.wms("https://siat.provincia.tn.it/geoserver/stem/ows",{layers:"2014_agg_2018_dtm_315_10",format:"image/png",transparent:true,zIndex:10,
+      attribution:"Provincia autonoma di Trento, LiDAR 2014–2018"})},
+  lidarbz:{label:"Rilievo LiDAR – Alto Adige",bounds:ALTOADIGE,note:"Rilievo ombreggiato della Provincia di Bolzano: 0,5 m nei fondovalle e nelle aree abitate, 2,5 m altrove (meno dettagliato in alta quota).",
+    layer:()=>L.tileLayer.wms("https://geoservices.buergernetz.bz.it/mapproxy/ows",{layers:"p_bz-Elevation:DigitalTerrainModel-2.5m-Hillshade,p_bz-Elevation:DigitalTerrainModel-0.5m-Hillshade",format:"image/png",transparent:true,zIndex:10,
+      attribution:"Provincia autonoma di Bolzano"})}
 };
 let histLayer=null,histKey="nessuna";
 const opacityEl=document.getElementById("opacity");
